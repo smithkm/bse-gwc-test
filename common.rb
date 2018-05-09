@@ -2,6 +2,43 @@ require 'net/http'
 require 'rexml/document'
 require 'rexml/xpath'
 require 'rexml/element'
+require 'yaml'
+require 'fileutils'
+
+class Config
+  def initialize(config, needed_config_values)
+    @config = config
+    @needed_config_values = needed_config_values
+  end
+
+  def []=(key, example)
+    if @config.has_key? key
+      return @config[key]
+    else
+      @config[key]=example
+      @needed_config_values<< key
+    end
+  end
+  
+  def self.read(config_file = 'config.yml')
+    FileUtils.touch(config_file)
+
+    config = YAML::load_file(config_file)
+    config={} unless config.respond_to? :has_key?
+  
+    needed_config_values = []
+
+    yield Config.new(config, needed_config_values)
+    
+    unless needed_config_values.empty?
+      $stderr.puts "#{config_file} missing config values: #{needed_config_values}"
+      File.write(config_file, config.to_yaml)
+      raise "Please check/fill in values before re-running"
+    end
+    
+    return config
+  end
+end
 
 def auth_admin(request)
   request.basic_auth "admin", "geoserver"

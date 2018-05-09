@@ -6,17 +6,21 @@ require 'dimensions'
 
 require './common.rb'
 
-# Relaxes the requirement that tiles should be truncated when their gridset is modified
-$manual_truncate_on_gridset_change = true
+config = Config.read do |config|
+  config["xstream_class_remove"]=false
+  config["nodes"]=["http://localhost:8080/geoserver/"]
+  config["layer"]="a layer with global extent"
+  config["manual_truncate_on_gridset_change"]=false
+end
 
-# Relaxes the test by removing XStream class attributes from the XML tree during a REST update
-$xstream_class_remove = true
+$xstream_class_remove = config["xstream_class_remove"]
+$manual_truncate_on_gridset_change = config["manual_truncate_on_gridset_change"]
 
-node1 = URI('http://localhost:8080/geoserver/')
-node2 = URI('http://localhost:8080/geoserver/')
-nodes = [node1, node2]
+nodes = config["nodes"].map {|uri| URI(uri)}
+node1 = nodes[0]
+node2 = nodes[-1]
 
-layer = "na-roads:ne_10m_roads_north_america"
+layer = config["layer"]
 
 gridset = "EPSG:2163"
 gridset_body = <<EOS
@@ -85,6 +89,7 @@ raise "gridset #{gridset} not added to remote layer catalog" if rest_get(node2+(
 
 raise "gridset #{gridset} not added to local layer catalog" if rest_get(node1+("gwc/rest/gridsets/"+gridset)).root.elements["/gridSet/name[text()='#{gridset}']"].nil?
 raise "gridset #{gridset} not added to remote layer catalog" if rest_get(node2+("gwc/rest/gridsets/"+gridset)).root.elements["/gridSet/name[text()='#{gridset}']"].nil?
+
 
 # Add gridset to layer
 

@@ -1,6 +1,7 @@
 # -*- mode: gitignore; -*-
 
 config.yml
+config
 
 # https://github.com/github/gitignore/blob/master/Global/Emacs.gitignore
 # CC-0

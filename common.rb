@@ -173,8 +173,13 @@ def wmts_getcap(baseuri)
   yield response
 end
 
-def wmts_gettile(baseuri, layer, gridset, format, x,y,z)
-  wmts_uri = baseuri+"gwc/service/wmts?layer=#{layer}&style=&tilematrixset=#{gridset}&Service=WMTS&Request=GetTile&Version=1.0.0&Format=#{format}&TileMatrix=#{gridset}%3A#{z}&TileCol=#{x}&TileRow=#{y}"
+def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
+  base_params = {"LAYER"=>layer, "TILEMATRIXSET"=>gridset, "TILEMATRIX"=>"#{gridset}:#{z}", "SERVICE"=>"WMTS", "VERSION"=>"1.0.0", "FORMAT"=>format, "TILECOL"=>x, "TILEROW"=>y, "REQUEST"=>"GetTile"}
+
+  all_params=params.merge base_params
+  all_params["STYLE"]||=""
+  #p all_params
+  wmts_uri = baseuri+("gwc/service/wmts?"+all_params.each_pair.map {|key, value| "#{URI.escape key.to_s}=#{URI.escape value.to_s}"}.join("&"))
   request = Net::HTTP::Get.new wmts_uri
   response = nil
   Net::HTTP.start(wmts_uri.host, wmts_uri.port) do |http|

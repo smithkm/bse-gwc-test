@@ -119,6 +119,7 @@ end
 # Check that we get correct behaviour for  WMTS GetTile
 
 wmts_gettile(node1, layer, gridset, "image/png", 2,1,0) do |response|
+  p response.body
   response.value
   raise "expected cache miss" unless response["geowebcache-cache-result"]=="MISS"
   dim =  Dimensions::Reader.new

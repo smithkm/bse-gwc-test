@@ -37,7 +37,7 @@ blobstore_body = <<EOS
 EOS
 
 def assertCacheStatus(response, status)
-  raise "expected cache #{status}" unless response["geowebcache-cache-result"]==status.to_s.upcase
+  raise "expected cache #{status.to_s.upcase} but was #{response["geowebcache-cache-result"]}" unless response["geowebcache-cache-result"]==status.to_s.upcase
 end
 
 def assertImage(response, type, width, height=width)
@@ -85,6 +85,12 @@ end
 wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |response|
   response.value
   assertCacheStatus(response, :miss)
+  assertImage(response, :png, 256)
+end
+
+wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |response|
+  response.value
+  assertCacheStatus(response, :hit)
   assertImage(response, :png, 256)
 end
 

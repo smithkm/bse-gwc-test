@@ -32,6 +32,7 @@ class Config
     yield configurator = Config.new(config, needed_config_values)
 
     configurator["admin"]={"type"=>"basic", "username"=>"admin", "password"=>"geoserver"}
+    configurator["user"]={"type"=>"anonymous"}
     
     unless needed_config_values.empty?
       $stderr.puts "#{config_file} missing config values: #{needed_config_values}"
@@ -40,6 +41,7 @@ class Config
     end
 
     $admin_auth = authorizer(config["admin"])
+    $user_auth = authorizer(config["user"])
     
     return config
   end
@@ -47,6 +49,8 @@ end
 
 def authorizer(config_map)
   case config_map["type"]
+  when "anonymous"
+    return lambda {|request| request}
   when "basic"
     return lambda {|request| request.basic_auth config_map["username"], config_map["password"]}
   when "bearer"
@@ -196,6 +200,7 @@ end
 def wmts_getcap(baseuri)
   wmts_uri = baseuri+"gwc/service/wmts?REQUEST=GetCapabilities"
   request = Net::HTTP::Get.new wmts_uri
+  $user_auth[request]
   response = nil
   Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
@@ -211,8 +216,9 @@ def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
   #p all_params
   wmts_uri = baseuri+("gwc/service/wmts?"+all_params.each_pair.map {|key, value| "#{URI.escape key.to_s}=#{URI.escape value.to_s}"}.join("&"))
   request = Net::HTTP::Get.new wmts_uri
+  $user_auth[request]
   response = nil
-  Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => uri.scheme == 'https') do |http|
+  Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => wmts_uri.scheme == 'https') do |http|
     response = http.request request
   end
   yield response

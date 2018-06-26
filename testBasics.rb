@@ -28,7 +28,7 @@ end
 # Check that we can make a tile request and get a PNG
 
 nodes.each do |base|
-  wmts_gettile(base, layer, gridset, "image/png", 2,2,1) do |response|
+  wmts_gettile(base, layer, gridset, "image/png", 3,2,3) do |response|
     response.value
     dim =  Dimensions::Reader.new
     dim << response.body

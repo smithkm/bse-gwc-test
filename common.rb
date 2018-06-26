@@ -4,6 +4,7 @@ require 'rexml/xpath'
 require 'rexml/element'
 require 'yaml'
 require 'fileutils'
+require 'json'
 
 class Config
   def initialize(config, needed_config_values)
@@ -28,20 +29,48 @@ class Config
   
     needed_config_values = []
 
-    yield Config.new(config, needed_config_values)
+    yield configurator = Config.new(config, needed_config_values)
+
+    configurator["admin"]={"type"=>"basic", "username"=>"admin", "password"=>"geoserver"}
     
     unless needed_config_values.empty?
       $stderr.puts "#{config_file} missing config values: #{needed_config_values}"
       File.write(config_file, config.to_yaml)
       raise "Please check/fill in values before re-running"
     end
+
+    $admin_auth = authorizer(config["admin"])
     
     return config
   end
 end
 
+def authorizer(config_map)
+  case config_map["type"]
+  when "basic"
+    return lambda {|request| request.basic_auth config_map["username"], config_map["password"]}
+  when "bearer"
+    return lambda {|request| request.add_field("Authorization","Bearer #{config_map["token"]}")}
+  when "mbse-auth0"
+    return lambda do |request|
+      uri = URI(config_map["uri"])
+      auth_request = Net::HTTP::Post.new uri 
+      auth_request.content_type = "application/json"
+      auth_request.body=JSON.generate(config_map.reject{|key, value| ["type", "uri"].include? key})
+      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+        response = http.request auth_request
+        response.value
+        token = JSON.parse(response.body)["access_token"]
+        puts token
+        request.add_field("Authorization","Bearer #{token}")
+      end
+    end
+  end
+end
+
+
 def auth_admin(request)
-  request.basic_auth "admin", "geoserver"
+  $admin_auth[request]
 end
 
 def strip_class_attributes(doc)
@@ -55,7 +84,7 @@ def rest_update(uri, method: Net::HTTP::Put)
   request.add_field("Accept","application/xml")
   auth_admin(request)
   
-  Net::HTTP.start(uri.host, uri.port) do |http|
+  Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
     response.value
 
@@ -83,8 +112,9 @@ def rest_get(uri)
   request.add_field("Accept","application/xml")
   auth_admin(request)
   
-  Net::HTTP.start(uri.host, uri.port) do |http|
+  Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
+    puts response.body
     response.value
 
     doc = REXML::Document.new response.body
@@ -102,7 +132,7 @@ def rest_add(uri, doc, method: Net::HTTP::Put)
 
   request.body=doc.to_s
 
-  Net::HTTP.start(uri.host, uri.port) do |http|
+  Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
     response.value
     
@@ -116,7 +146,7 @@ def rest_delete(uri)
   request = Net::HTTP::Delete.new uri
   auth_admin(request)
 
-  Net::HTTP.start(uri.host, uri.port) do |http|
+  Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
     response.value
     
@@ -132,7 +162,7 @@ def rest_mass_truncate(baseuri, layer)
   request.content_type = 'text/xml'
   auth_admin(request)
   request.body="<truncateLayer><layerName>#{layer}</layerName></truncateLayer>"
-  Net::HTTP.start(uri.host, uri.port) do |http|
+  Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
     puts response.body
     response.value
@@ -156,7 +186,7 @@ def rest_seed(baseuri, layer, gridset, format, type, zoom: nil, parameters: nil)
   end
   body += "</seedRequest>"
   request.body = body
-  Net::HTTP.start(uri.host, uri.port) do |http|
+  Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
     response.value
   end
@@ -167,7 +197,7 @@ def wmts_getcap(baseuri)
   wmts_uri = baseuri+"gwc/service/wmts?REQUEST=GetCapabilities"
   request = Net::HTTP::Get.new wmts_uri
   response = nil
-  Net::HTTP.start(wmts_uri.host, wmts_uri.port) do |http|
+  Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
   end
   yield response
@@ -182,7 +212,7 @@ def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
   wmts_uri = baseuri+("gwc/service/wmts?"+all_params.each_pair.map {|key, value| "#{URI.escape key.to_s}=#{URI.escape value.to_s}"}.join("&"))
   request = Net::HTTP::Get.new wmts_uri
   response = nil
-  Net::HTTP.start(wmts_uri.host, wmts_uri.port) do |http|
+  Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
   end
   yield response

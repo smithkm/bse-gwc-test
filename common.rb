@@ -63,9 +63,8 @@ def authorizer(config_map)
       auth_request.body=JSON.generate(config_map.reject{|key, value| ["type", "uri"].include? key})
       Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
         response = http.request auth_request
-        response.value
+        check_ok(auth_request, response)
         token = JSON.parse(response.body)["access_token"]
-        puts token
         request.add_field("Authorization","Bearer #{token}")
       end
     end
@@ -90,7 +89,7 @@ def rest_update(uri, method: Net::HTTP::Put)
   
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    response.value
+    check_ok(request, response)
 
     doc = REXML::Document.new response.body
     
@@ -103,7 +102,7 @@ def rest_update(uri, method: Net::HTTP::Put)
     request2.body=doc.to_s
     
     response2 = http.request request2
-    response.value
+    check_ok(request2, response2)
 
   end
     
@@ -118,8 +117,7 @@ def rest_get(uri)
   
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    puts response.body
-    response.value
+    check_ok(request, response)
 
     doc = REXML::Document.new response.body
     
@@ -138,7 +136,7 @@ def rest_add(uri, doc, method: Net::HTTP::Put)
 
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    response.value
+    check_ok(request, response)
     
     return doc
     
@@ -152,7 +150,7 @@ def rest_delete(uri)
 
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    response.value
+    check_ok(request, response)
     
     return response.body
     
@@ -168,8 +166,7 @@ def rest_mass_truncate(baseuri, layer)
   request.body="<truncateLayer><layerName>#{layer}</layerName></truncateLayer>"
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    puts response.body
-    response.value
+    check_ok(request, response)
   end
   
 end
@@ -192,7 +189,7 @@ def rest_seed(baseuri, layer, gridset, format, type, zoom: nil, parameters: nil)
   request.body = body
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    response.value
+    check_ok(request, response)
   end
   
 end
@@ -205,7 +202,7 @@ def wmts_getcap(baseuri)
   Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
   end
-  yield response
+  yield request, response
 end
 
 def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
@@ -221,5 +218,22 @@ def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
   Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => wmts_uri.scheme == 'https') do |http|
     response = http.request request
   end
-  yield response
+  yield request, response
+end
+
+def check_status(request, response, status)
+  if(response.code.to_i!=status)
+    puts "* Expected status #{status} but was #{response.code}"
+    puts "* Request: #{request.uri}"
+    request.each_header {|key, value| puts "* - #{key}: #{value}"}
+    puts "* - Body: \n#{request.body}" unless request.body.nil? or request.body.empty?
+    puts "* Response #{response.code} #{response.message}"
+    response.each_header {|key, value| puts "* - #{key}: #{value}"}
+    puts "* - Body: \n#{response.body}" unless response.body.nil? or response.body.empty?
+    exit 1
+  end
+end
+
+def check_ok(request, response)
+  check_status(request, response, 200)
 end

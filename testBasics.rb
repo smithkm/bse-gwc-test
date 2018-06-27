@@ -28,8 +28,8 @@ end
 # Check that we can make a tile request and get a PNG
 
 nodes.each do |base|
-  wmts_gettile(base, layer, gridset, "image/png", 3,2,3) do |response|
-    response.value
+  wmts_gettile(base, layer, gridset, "image/png", 3,2,3) do |request, response|
+    check_ok(request, response)
     dim =  Dimensions::Reader.new
     dim << response.body
     raise "expected 256x256 png but was #{dim.width}x#{dim.height} #{dim.type}" unless (dim.width==256 and dim.height==256 and dim.type==:png)

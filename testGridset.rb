@@ -106,8 +106,8 @@ raise "gridset #{gridset} not added to remote layer #{layer}" if rest_get(node2+
 # Check that gridset was added to layer via WMTS GetCapabilities
 
 nodes.each do |base|
-  wmts_getcap(base) do |response|
-    response.value
+  wmts_getcap(base) do |request, response|
+    check_ok(request, response)
     doc = REXML::Document.new response.body
     raise "gridset #{gridset} not in WMTS capabilities" if doc.root.elements["/Capabilities/Contents/TileMatrixSet/ows:Identifier[text()='#{gridset}']"].nil?
     doc.root.elements.each("/Capabilities/Contents/TileMatrixSet[ows:Identifier[text()='#{gridset}']]TileMatrix") do |matrix|
@@ -118,17 +118,16 @@ end
 
 # Check that we get correct behaviour for  WMTS GetTile
 
-wmts_gettile(node1, layer, gridset, "image/png", 2,1,0) do |response|
-  p response.body
-  response.value
+wmts_gettile(node1, layer, gridset, "image/png", 2,1,0) do |request,response|
+  check_ok(request, response)
   raise "expected cache miss" unless response["geowebcache-cache-result"]=="MISS"
   dim =  Dimensions::Reader.new
   dim << response.body
   raise "expected 200x200 png but was #{dim.width}x#{dim.height} #{dim.type}" unless (dim.width==200 and dim.height==200 and dim.type==:png)
 end
 
-wmts_gettile(node2, layer, gridset, "image/png", 2,1,0) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,1,0) do |request,response|
+  check_ok(request, response)
   raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   dim =  Dimensions::Reader.new
   dim << response.body
@@ -136,16 +135,16 @@ wmts_gettile(node2, layer, gridset, "image/png", 2,1,0) do |response|
 end
 
 # Get a different tile
-wmts_gettile(node2, layer, gridset, "image/png", 2,2,1) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,2,1) do |request,response|
+  check_ok(request, response)
   raise "expected cache miss" unless response["geowebcache-cache-result"]=="MISS"
   dim =  Dimensions::Reader.new
   dim << response.body
   raise "expected 200x200 png but was #{dim.width}x#{dim.height} #{dim.type}" unless (dim.width==200 and dim.height==200 and dim.type==:png)
 end
 
-wmts_gettile(node1, layer, gridset, "image/png", 2,2,1) do |response|
-  response.value
+wmts_gettile(node1, layer, gridset, "image/png", 2,2,1) do |request,response|
+  check_ok(request, response)
   raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   dim =  Dimensions::Reader.new
   dim << response.body
@@ -169,16 +168,16 @@ if $manual_truncate_on_gridset_change
 end
 
 # Get tiles again.  Dimensions should reflect new size and misses should indicate the cache was truncated
-wmts_gettile(node1, layer, gridset, "image/png", 2,1,0) do |response|
-  response.value
+wmts_gettile(node1, layer, gridset, "image/png", 2,1,0) do |request,response|
+  check_ok(request, response)
   raise "expected cache miss" unless response["geowebcache-cache-result"]=="MISS"
   dim =  Dimensions::Reader.new
   dim << response.body
   raise "expected 256x256 png but was #{dim.width}x#{dim.height} #{dim.type}" unless (dim.width==256 and dim.height==256 and dim.type==:png)
 end
 
-wmts_gettile(node2, layer, gridset, "image/png", 2,1,0) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,1,0) do |request,response|
+  check_ok(request, response)
   raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   dim =  Dimensions::Reader.new
   dim << response.body
@@ -186,16 +185,16 @@ wmts_gettile(node2, layer, gridset, "image/png", 2,1,0) do |response|
 end
 
 # Get a different tile starting with second node
-wmts_gettile(node2, layer, gridset, "image/png", 2,2,1) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,2,1) do |request,response|
+  check_ok(request, response)
   raise "expected cache miss" unless response["geowebcache-cache-result"]=="MISS"
   dim =  Dimensions::Reader.new
   dim << response.body
   raise "expected 256x256 png but was #{dim.width}x#{dim.height} #{dim.type}" unless (dim.width==256 and dim.height==256 and dim.type==:png)
 end
 
-wmts_gettile(node1, layer, gridset, "image/png", 2,2,1) do |response|
-  response.value
+wmts_gettile(node1, layer, gridset, "image/png", 2,2,1) do |request,response|
+  check_ok(request, response)
   raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   dim =  Dimensions::Reader.new
   dim << response.body

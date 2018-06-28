@@ -136,7 +136,7 @@ def rest_add(uri, doc, method: Net::HTTP::Put)
 
   Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
     response = http.request request
-    check_ok(request, response)
+    check_status(request, response, 201)
     
     return doc
     
@@ -199,7 +199,7 @@ def wmts_getcap(baseuri)
   request = Net::HTTP::Get.new wmts_uri
   $user_auth[request]
   response = nil
-  Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => uri.scheme == 'https') do |http|
+  Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => wmts_uri.scheme == 'https') do |http|
     response = http.request request
   end
   yield request, response
@@ -230,7 +230,7 @@ def check_status(request, response, status)
     puts "* Response #{response.code} #{response.message}"
     response.each_header {|key, value| puts "* - #{key}: #{value}"}
     puts "* - Body: \n#{response.body}" unless response.body.nil? or response.body.empty?
-    exit 1
+    response.error!
   end
 end
 

@@ -50,14 +50,14 @@ end
 
 # make a GetTile request to node1, it should be a miss, then try rach of the other nodes, they chould be hits.  If a block is given it will be passed all response objects for validation
 def get_tile_miss_hit(node1, nodes, layer, gridset, format, x,y,z, params:{})
-  wmts_gettile(node1, layer, gridset, format, x,y,z, params: params) do |response|
-    response.value
+  wmts_gettile(node1, layer, gridset, format, x,y,z, params: params) do |request,response|
+    check_ok(request, response)
     raise "expected cache miss" unless response["geowebcache-cache-result"]=="MISS"
     yield response if block_given?
   end
   nodes.each do |base|
-    wmts_gettile(base, layer, gridset, "image/png", x,y,z) do |response|
-      response.value
+    wmts_gettile(base, layer, gridset, "image/png", x,y,z) do |request,response|
+      check_ok(request, response)
       raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
       yield response if block_given?
     end
@@ -123,7 +123,7 @@ get_tile_miss_hit(node2, nodes, layer, gridset, "image/png", 2,2,3, params:{"foo
 
 # A request with a parameter value not in the filter should be rejected
 nodes.each do |base|
-  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"X"}) do |response|
+  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"X"}) do |request,response|
     
     raise "expected a 500" unless response.code.to_i==500 # This should really be a 4xx error
   end
@@ -155,7 +155,7 @@ get_tile_miss_hit(node2, nodes, layer, gridset, "image/png", 2,2,3, params:{"foo
 
 # We should now get a hit the first time we use a capital letter
 nodes.each do |base|
-  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"A"}) do |response|
+  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"A"}) do |request,response|
     raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   end
 end
@@ -184,7 +184,7 @@ get_tile_miss_hit(node2, nodes, layer, gridset, "image/png", 2,2,3, params:{"foo
 
 # We should now get a hit the first time we use a capital dotted I
 nodes.each do |base|
-  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"İ"}) do |response|
+  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"İ"}) do |request,response|
     raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   end
 end
@@ -196,7 +196,7 @@ get_tile_miss_hit(node2, nodes, layer, gridset, "image/png", 2,2,3, params:{"foo
 
 # We should now get a hit the first time we use a lower case dotless I
 nodes.each do |base|
-  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"ı"}) do |response|
+  wmts_gettile(base, layer, gridset, "image/png", 2,1,2, params:{"foo"=>"ı"}) do |request,response|
     raise "expected cache hit" unless response["geowebcache-cache-result"]=="HIT"
   end
 end

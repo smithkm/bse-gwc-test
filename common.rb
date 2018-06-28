@@ -33,6 +33,7 @@ class Config
 
     configurator["admin"]={"type"=>"basic", "username"=>"admin", "password"=>"geoserver"}
     configurator["user"]={"type"=>"anonymous"}
+    configurator["extra_headers"]={}
     
     unless needed_config_values.empty?
       $stderr.puts "#{config_file} missing config values: #{needed_config_values}"
@@ -42,7 +43,7 @@ class Config
 
     $admin_auth = authorizer(config["admin"])
     $user_auth = authorizer(config["user"])
-    
+    $extra_headers=config["extra_headers"]
     return config
   end
 end
@@ -68,6 +69,8 @@ def authorizer(config_map)
         request.add_field("Authorization","Bearer #{token}")
       end
     end
+  else
+    raise "Not a valid authentication type #{config_map["type"]}"
   end
 end
 
@@ -197,6 +200,7 @@ end
 def wmts_getcap(baseuri)
   wmts_uri = baseuri+"gwc/service/wmts?REQUEST=GetCapabilities"
   request = Net::HTTP::Get.new wmts_uri
+  add_extra_headers request
   $user_auth[request]
   response = nil
   Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => wmts_uri.scheme == 'https') do |http|
@@ -213,6 +217,7 @@ def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
   #p all_params
   wmts_uri = baseuri+("gwc/service/wmts?"+all_params.each_pair.map {|key, value| "#{URI.escape key.to_s}=#{URI.escape value.to_s}"}.join("&"))
   request = Net::HTTP::Get.new wmts_uri
+  add_extra_headers request
   $user_auth[request]
   response = nil
   Net::HTTP.start(wmts_uri.host, wmts_uri.port, :use_ssl => wmts_uri.scheme == 'https') do |http|
@@ -221,15 +226,25 @@ def wmts_gettile(baseuri, layer, gridset, format, x,y,z, params:{})
   yield request, response
 end
 
-def check_status(request, response, status)
-  if(response.code.to_i!=status)
-    puts "* Expected status #{status} but was #{response.code}"
+def add_extra_headers(request)
+  $extra_headers.each do |key, value|
+    request.add_field(key, value)
+  end
+end
+
+def request_out(request, response)
     puts "* Request: #{request.uri}"
     request.each_header {|key, value| puts "* - #{key}: #{value}"}
     puts "* - Body: \n#{request.body}" unless request.body.nil? or request.body.empty?
     puts "* Response #{response.code} #{response.message}"
     response.each_header {|key, value| puts "* - #{key}: #{value}"}
     puts "* - Body: \n#{response.body}" unless response.body.nil? or response.body.empty?
+end
+
+def check_status(request, response, status)
+  if(response.code.to_i!=status)
+    puts "* Expected status #{status} but was #{response.code}"
+    request_out(request, response)
     response.error!
   end
 end

@@ -82,26 +82,26 @@ nodes.each do |base|
 end
 
 
-wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |response|
-  response.value
+wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |request,response|
+  check_ok(request, response)
   assertCacheStatus(response, :miss)
   assertImage(response, :png, 256)
 end
 
-wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |response|
-  response.value
+wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |request,response|
+  check_ok(request, response)
   assertCacheStatus(response, :hit)
   assertImage(response, :png, 256)
 end
 
-wmts_gettile(node2, layer, gridset, "image/png", 2,1,2) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,1,2) do |request,response|
+  check_ok(request, response)
   assertCacheStatus(response, :hit)
   assertImage(response, :png, 256)
 end
 
-wmts_gettile(node2, layer, gridset, "image/png", 2,1,3) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,1,3) do |request,response|
+  check_ok(request, response)
   assertCacheStatus(response, :miss)
   assertImage(response, :png, 256)
 end
@@ -117,26 +117,31 @@ nodes.each do |base|
   raise "#{blobstore} not added" if rest_get(base+("gwc/rest/blobstores/"+blobstore)).root.elements["/FileBlobStore/id[text()='#{blobstore}']"].nil?
 end
 
-# Set layer to use gridset
+# Set layer to use blobstore
 rest_update(node1+("gwc/rest/layers/"+layer)) do |doc|
   doc.root.add_element(REXML::Element.new("blobStoreId")).text=blobstore
   doc
 end
 
-wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |response|
-  response.value
+nodes.each do |base|
+  raise "#{blobstore} not added to layer #{layer}" if rest_get(base+("gwc/rest/layers/#{layer}")).root.elements["//blobStoreId[text()='#{blobstore}']"].nil?
+end
+
+wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |request,response|
+  check_ok(request, response)
+  request_out(request, response)
   assertCacheStatus(response, :miss)
   assertImage(response, :png, 256)
 end
 
-wmts_gettile(node2, layer, gridset, "image/png", 2,1,2) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,1,2) do |request,response|
+  check_ok(request, response)
   assertCacheStatus(response, :hit)
   assertImage(response, :png, 256)
 end
 
-wmts_gettile(node2, layer, gridset, "image/png", 2,1,3) do |response|
-  response.value
+wmts_gettile(node2, layer, gridset, "image/png", 2,1,3) do |request,response|
+  check_ok(request, response)
   assertCacheStatus(response, :miss)
   assertImage(response, :png, 256)
 end
@@ -150,20 +155,20 @@ if config["cache_deleted_when_blobstore_changes"]
     doc
   end
   
-  wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |response|
-    response.value
+  wmts_gettile(node1, layer, gridset, "image/png", 2,1,2) do |request,response|
+    check_ok(request, response)
     assertCacheStatus(response, :miss)
     assertImage(response, :png, 256)
   end
   
-  wmts_gettile(node2, layer, gridset, "image/png", 2,1,2) do |response|
-    response.value
+  wmts_gettile(node2, layer, gridset, "image/png", 2,1,2) do |request,response|
+    check_ok(request, response)
     assertCacheStatus(response, :hit)
     assertImage(response, :png, 256)
   end
   
-  wmts_gettile(node2, layer, gridset, "image/png", 2,1,3) do |response|
-    response.value
+  wmts_gettile(node2, layer, gridset, "image/png", 2,1,3) do |request,response|
+    check_ok(request, response)
     assertCacheStatus(response, :miss)
     assertImage(response, :png, 256)
   end
